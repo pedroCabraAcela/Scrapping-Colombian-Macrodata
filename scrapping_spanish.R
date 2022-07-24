@@ -11,6 +11,7 @@
 packages_download <- function(){
   if (!require(openxlsx))install.packages("openxlsx");library(openxlsx)
   if (!require(httr))install.packages("httr");library(httr)
+  if (!require(lubridate))install.packages("lubridate");library(lubridate)
 }             
 
 
@@ -48,10 +49,11 @@ get.TRM <- function(){
   return(TRM)
 }
 
-######################################
+#########################################
 # IPC: Banco de la republica de Colombia
-######################################
-get.IPC = function(){
+##########################################
+
+get.IPC <- function(){
   
   #' Funcion que hace webscrapping a los exceles del Banco de la republica de Colombia
   #' para obtener el historico del IPC en niveles mensuales
@@ -122,6 +124,76 @@ get.IPC = function(){
   d[,2] <- as.numeric(d[,2])
   #se anuncia cuantos datos se consiguieron
   print(paste0("Se obtuvo datos para el IPC desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
+  print("Fuente: Banco de la Republica de Colombia")
+  #se returna el data frame
+  return(d)
+  
+}
+
+###################################################################
+# Tasa de desempleo en Colombia: Banco de la republica de Colombia
+###################################################################
+
+get.TasaDesempleoCol <- function(){
+  
+  #' Funcion que hace webscrapping a los exceles del Banco de la republica de Colombia
+  #' para obtener el historico de la tasa de desempleo
+  #'
+  #' OUTPUT:
+  #' @return data frame con las fechas y la tasa de desempleo
+  
+  #link del excel de la tasa de desempleo del banrep
+  link <- "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20Empleo%20y%20desempleo%2F1.1%20Serie%20hist%C3%B3rica%2F1.1.1.EMP_Total%20nacional%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1"
+  
+  #se hace un print de que inicio el proceso
+  print("Extrayendo datos, puede tomar unos minutos")
+  #se crea un archov temporal
+  path_excel <- tempfile(fileext = ".xlsx")
+  
+  #se extraen los datos de la descarga
+  
+  while(class(try(read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
+    r <- GET(link,
+             add_headers(
+               Host="totoro.banrep.gov.co",
+               `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
+               Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+               `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+               `Accept-Encoding` = "gzip, deflate",
+               Connection = "keep-alive"
+             ))
+    #se pasan a formato excel
+    bin <- content(r, "raw")
+    writeBin(bin, path_excel)
+    
+    #se leen
+    d <- try(read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T)
+  }
+  #se borra el excel
+  file.remove(path_excel)
+  
+  #se arregla el formato
+  ##se dejan solo las fechas y la tasa de desempleo (se busca en las filas 'MES' y en las columnas
+  #desempleo)
+  d <- d[grep('Mes',d[,1]):nrow(d),c(1,grep('desempleo',d[grep('Mes',d[,1]),]))]
+  ##la primera fila se quita
+  d <- d[-1,]
+  ##se pasa la primera coluna a fecha (lo que no funciona asi es porque eran filas que no sirven)
+  d[,1] <- as.Date(paste0(d[,1],'-1'))%m+%months(1)-1
+  ##se deja de una vez solo lo que no sea NA en ninguna de las dos columnas
+  ##asi se borra tanto lo que era texto antes como lo que no tiene dato
+  d <- d[complete.cases(d),]
+  
+  #se arreglan los nombres de las columnas
+  names(d) <- c("Fecha", "tasa_desempleo_%")
+  #se ordena
+  d <- d[order(d$Fecha),]
+  #se quitan los nombres de las filas
+  rownames(d) <- NULL
+  #se vuelven numeros las tasas y se divide en 100
+  # d[,2] <- as.numeric(d[,2])/100
+  #se anuncia cuantos datos se consiguieron
+  print(paste0("Se obtuvo datos para la tasa de desempleo desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
   print("Fuente: Banco de la Republica de Colombia")
   #se returna el data frame
   return(d)
