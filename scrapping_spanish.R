@@ -8,6 +8,7 @@
 ######################################
 # Esta funcion descarga y lee los paquetes requeridos
 ######################################
+
 packages_download <- function(){
   if (!require(openxlsx))install.packages("openxlsx");library(openxlsx)
   if (!require(httr))install.packages("httr");library(httr)
@@ -255,9 +256,9 @@ get.Colcap <-function(){
   ##se ponen los nombres a las columnas
   names(d) <- c("Fecha","Colcap")
   ##se pasa a formato fecha
-  d$Fecha = as.Date(d$Fecha)
+  d$Fecha <- as.Date(d$Fecha)
   ##se pasa a formato numerico
-  d$Colcap = as.numeric(d$Colcap)
+  d$Colcap <- as.numeric(d$Colcap)
   
   #se ordena
   d <- d[order(d$Fecha),]
@@ -339,3 +340,97 @@ get.TasaIntBanRep <- function(){
   return(d)
   
 }
+
+######################################
+# IBR: BanRep
+######################################
+
+get.IBR <- function(nom = "ON"){
+  
+  #' Funcion que hace webscrapping a los exceles del Banrep para obtener la ibr
+  #' nominal a los plazos que se deseen
+  #'
+  #' INPUT:
+  #' @param nom: plazo de la tasa que se quiere. Puede ser ON, 1M, 3M o 6M y predeterminadamente
+  #' se saca ON
+  #'
+  #' OUTPUT:
+  #' @return data frame con las fechas y las tasas a los plazos que se haya solicitado
+  
+  #se buscan la posicion de los nodos que se quieren extraer
+  posNodos <- grep(paste(nom,collapse="|"),c("ON","1M", "3M", "6M"))
+  
+  #Son los links de descargade cada uno de los nodos "ON","1M", "3M", "6M".
+  #Si cambian los links hay que cambiar este vector
+  links <- c("https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20IBR%2F%201.1.IBR_Plazo%20overnight%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1",
+            "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20IBR%2F%201.2.IBR_Plazo%20un%20mes%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1",
+            "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20IBR%2F%201.3.IBR_Plazo%20tres%20meses%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1",
+            "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&Path=%2fshared%2fSeries%20Estad%C3%ADsticas_T%2f1.%20IBR%2f1.5.IBR_Plazo%20seis%20meses%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1"
+            )
+  
+  #se sacan solo los nodos que se quieren
+  link <- links[posNodos]
+  
+  #se hace un print de que inicio el proceso
+  print("Extrayendo datos, puede tomar unos minutos")
+  #se crea un archov temporal
+  path_excel <- tempfile(fileext = ".xlsx")
+  
+  #se extraen los datos de la descarga
+  
+  while(class(try(read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
+    r <- GET(link,
+             add_headers(
+               Host="totoro.banrep.gov.co",
+               `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
+               Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+               `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+               `Accept-Encoding` = "gzip, deflate",
+               Connection = "keep-alive"
+             ))
+    #se pasan a formato excel
+    bin <- content(r, "raw")
+    writeBin(bin, path_excel)
+    
+    #se leen
+    d <- try(read.xlsx(path_excel, sheet = 1, detectDates = T),silent=T)
+  }
+  #se borra el excel
+  file.remove(path_excel)
+  
+  #SI CAMBIA EL FORMATO DE LOS EXCELES ES POSIBLE QUE HAYA QUE MODIFICAR ESTO
+  #se dejan solo las fechas y la tasa nominal
+  ##se busca la palabra fecha en la primera columna
+  posIniFilas <- grep("^fecha",tolower(d[,1]))
+  ##una fila arriba de esta se busca la tasa nominal
+  posCol <- grep("nominal",tolower(d[posIniFilas-1,]))
+  ##se saca ese pedazo del excel (la columna de fechas y la de tasa nominal sin titulos)
+  d <- d[(posIniFilas+1):nrow(d),c(1,posCol)]
+  
+  #se arregla el formato
+  ##se arreglan los nombres de las columnas
+  names(d) <- c("Fecha", paste0(nom,"_%"))
+  ##se cambian las comas por puntos y se quitan los % para volverlo numero
+  d[,2] <- gsub(x = d[,2], pattern = ",", ".")
+  d[,2] <- gsub(x = d[,2], pattern = "%", "")
+  d[,2] <- as.numeric(d[,2])
+  ##se divide en 100 para que quede como una tasa normal
+  #d[,2] <- (d[,2])/100
+  ##se dejan solo los que tengan fecha y tasa
+  d <- d[complete.cases(d),]
+  nominal <- d
+  #se dejan solo las fechas que tienen dato para todas las tasas
+  nominal <- nominal[complete.cases(nominal),]
+  #se convierte en fecha la variable de fecha
+  nominal$Fecha <- as.Date(nominal$Fecha)
+  #se ordena
+  nominal <- nominal[order(nominal$Fecha),]
+  #se quitan los nombres de las filas
+  rownames(nominal) <- NULL
+  #se anuncia cuantos datos se consiguieron
+  print(paste0("Se obtuvo datos para la IBR  ",nom," desde ", nominal$Fecha[1], " hasta ", nominal$Fecha[nrow(nominal)] ))
+  #se returna el data frame
+  return(nominal)
+  
+}
+
