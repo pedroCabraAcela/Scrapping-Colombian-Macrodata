@@ -347,8 +347,8 @@ get.TasaIntBanRep <- function(){
 
 get.IBR <- function(nom = "ON"){
   
-  #' Funcion que hace webscrapping a los exceles del Banrep para obtener la ibr
-  #' nominal a los plazos que se deseen
+  #' Funcion que hace webscrapping a los exceles del Banco de la republica de Colombia
+  #' para obtene la IBR nominal al  plazo que se desee
   #'
   #' INPUT:
   #' @param nom: plazo de la tasa que se quiere. Puede ser ON, 1M, 3M o 6M y predeterminadamente
