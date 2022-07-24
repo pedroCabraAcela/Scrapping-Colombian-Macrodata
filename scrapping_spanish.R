@@ -13,6 +13,7 @@ packages_download <- function(){
   if (!require(openxlsx))install.packages("openxlsx");library(openxlsx)
   if (!require(httr))install.packages("httr");library(httr)
   if (!require(lubridate))install.packages("lubridate");library(lubridate)
+  if (!require(readxl))install.packages("readxl");library(readxl)
 }             
 
 
@@ -342,7 +343,7 @@ get.TasaIntBanRep <- function(){
 }
 
 ######################################
-# IBR: BanRep
+# IBR: Banco de la republica de Colombia
 ######################################
 
 get.IBR <- function(nom = "ON"){
@@ -431,6 +432,115 @@ get.IBR <- function(nom = "ON"){
   print(paste0("Se obtuvo datos para la IBR  ",nom," desde ", nominal$Fecha[1], " hasta ", nominal$Fecha[nrow(nominal)] ))
   #se returna el data frame
   return(nominal)
+  
+}
+
+######################################
+# Acciones: Bolsa de Valores de Colombia BVC
+######################################
+get.Acciones <- function(accion="BCOLOMBIA"){
+  
+  #' Funcion que hace webscrapping a los exceles de la BVC para obtener el precio diario
+  #' de la accion que se desee
+  #' La pagina de BVC solo permite extraer lapsos de 6 meses a la vez, por lo que 
+  #' es una extraccion que toma su tiempo.
+  
+  #' IMPUT:
+  #' @param accion: Accion de la que se quieren datos, por el momento se puede:
+  #'  Bancolombia: "BCOLOMBIA",
+  #'  Ecopetrol: "ECOPETROL",
+  #'  Exito: "EXITO",
+  #'  Avianca: "AVIANCA",
+  #'  Grupo Sura: "GRUPOSURA",
+  #'  Grupo Aval: "GRUPOAVAL"
+  #'  ETB: "ETB"
+  #'  La predeterminada es BCOLOMBIA
+  
+  #' OUTPUT:
+  #' @return data frame con las fechas y los datos de la accion
+  
+  #valores que se extraeran
+  nom <- c("Volumen","Precio Cierre","Precio Mayor","Precio Medio","Precio Menor")
+  #se define la fecha de hoy e inicial
+  hoy <- as.Date(today())
+  fechaIni <- as.Date("2011-1-1")
+  
+  
+  #solo se puede sacar datos en lapsos de 5 meses entonces se hace una secuencia
+  #de cada 5 meses desde fechaIni hasta hoy
+  fechasExtraer <- seq(fechaIni,hoy,by="5 months")
+  ##si la ultima fecha de hoy no esta en la secuencia, se agrega
+  if(fechasExtraer[length(fechasExtraer)]!=hoy){fechasExtraer = c(fechasExtraer,hoy)}
+  
+  #se hace un print de que inicio el proceso
+  print("Extrayendo datos, puede tomar unos minutos")
+  #se crea un archov temporal
+  path_excel <- tempfile(fileext = ".xlsx")
+  
+  listaAccion <- lapply(1:(length(fechasExtraer)-1),function(x){
+    
+    #link del excel de la accion del banrep
+    link <- paste0("https://www.bvc.com.co/mercados/DescargaXlsServlet?archivo=acciones_detalle&nemo=",
+                  accion,"&tipoMercado=1&fechaIni=",fechasExtraer[x]+1,"&fechaFin=",
+                  fechasExtraer[x+1])
+    print(paste("Extrayendo de",fechasExtraer[x]+1,"hasta",fechasExtraer[x+1]))
+    #se extraen los datos
+    r <- GET(link,
+             add_headers(
+               Host="totoro.banrep.gov.co",
+               `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
+               Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+               `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+               `Accept-Encoding` = "gzip, deflate",
+               Connection = "keep-alive"
+             ))
+    #se pasan a formato excel
+    bin <- content(r, "raw")
+    writeBin(bin, path_excel)
+    
+    #se leen
+    d <- try(read_xls(path_excel, sheet = 1),silent=T)
+    
+    if(class(d)[1]=="try-error"){return(NA)}else{
+      d <- suppressWarnings(data.frame(d))
+      
+      ##se pasa a formato fecha las fechas
+      d$fecha <- as.Date(d$fecha)
+      
+      #se ordena
+      d <- d[order(d$fecha),]
+      
+      d
+      
+      
+    }
+    
+  })
+  unlink(path_excel)
+
+  
+  listaAccion <- do.call(rbind,listaAccion)
+  
+  #SI CAMBIA EL FORMATO DE LOS EXCELES ES POSIBLE QUE HAYA QUE MODIFICAR ESTO
+  #se arregla el formato
+  ##se quitan variable que no se usan
+  listaAccion <- listaAccion[,-c(1,3,9,10)]
+  listaAccion <- data.frame(listaAccion)
+  ##se cambian los nombres
+  names(listaAccion) <- c("Fecha","Volumen","Precio Cierre","Precio Mayor",
+                         "Precio Medio","Precio Menor")
+  listaAccion <- listaAccion[,c("Fecha",nom)]
+  ##se quitan los casos donde hayan NA
+  listaAccion <- listaAccion[complete.cases(listaAccion),]
+  ##se quitan los que tengan solo ceros en todo menos la fecha
+  listaAccion <- listaAccion[!rowSums(listaAccion[,-1])==0,]
+  ##se quitan los nombres de las filas
+  rownames(listaAccion) <- NULL
+  
+  #se anuncia cuantos datos se consiguieron
+  print(paste0("Se obtuvo datos para el ", accion, " desde ", listaAccion$Fecha[1], " hasta ", listaAccion$Fecha[nrow(listaAccion)] ))
+  #se returna el data frame
+  return(listaAccion)
   
 }
 
