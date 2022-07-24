@@ -203,10 +203,10 @@ get.TasaDesempleoCol <- function(){
 ######################################
 # Colcap: Banco de la republica de Colombia
 ######################################
-get.Colcap = function(){
+get.Colcap <-function(){
   
-  #' Funcion que hace webscrapping a los exceles del Banrep para obtener el colcap
-  #' en niveles diarios
+  #' Funcion que hace webscrapping a los exceles del Banco de la republica de Colombia
+  #' para obtener el colcap en niveles diarios
   #'
   #' OUTPUT:
   #' @return data frame con las fechas y el colcap
@@ -273,3 +273,69 @@ get.Colcap = function(){
   
 }
 
+######################################
+# Tasa intervencion: Banco de la republica de Colombia
+######################################
+
+get.TasaIntBanRep <- function(){
+  
+  #' Funcion que hace webscrapping a los exceles del Banco de la republica de Colombia
+  #' para obtener la tasa de intervencion
+  #'
+  #' OUTPUT:
+  #' @return data frame con las fechas y la tasa de intervencion
+  
+  
+  #link del excel del ipc del banrep
+  link <- "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20Tasa%20de%20intervenci%C3%B3n%20de%20pol%C3%ADtica%20monetaria%2F1.2.TIP_Serie%20hist%C3%B3rica%20diaria%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1"
+  
+  
+  #se hace un print de que inicio el proceso
+  print("Extrayendo datos, puede tomar unos minutos")
+  #se crea un archov temporal
+  path_excel <- tempfile(fileext = ".xlsx")
+  
+  #se extraen los datos de la descarga
+  
+  while(class(try(read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
+    r <- GET(link,
+             add_headers(
+               Host="totoro.banrep.gov.co",
+               `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
+               Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+               `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+               `Accept-Encoding` = "gzip, deflate",
+               Connection = "keep-alive"
+             ))
+    #se pasan a formato excel
+    bin <- content(r, "raw")
+    writeBin(bin, path_excel)
+    
+    #se leen
+    d <- try(read.xlsx(path_excel, sheet = 1, detectDates = T),silent=T)
+  }
+  #se borra el excel
+  file.remove(path_excel)
+  
+  ##se borra desde la posicion que dice Fecha
+  posQuitar <- grep("Fecha",d[,1])
+  d <- d[-c(1:posQuitar),]
+  ##se quita lo que no este completo
+  d <- d[complete.cases(d),]
+  ##se convierte en fecha la primera columna
+  d[,1] <- as.Date(d[,1])
+  ##se cambian los nombres
+  names(d) <- c("Fecha","tasaIntBanRep_%")
+  #se ordena
+  d <- d[order(d$Fecha),]
+  #se quitan los nombres de las filas
+  rownames(d) <- NULL
+  #se vuelven numeros las tasas
+  d[,2] <- as.numeric(d[,2])
+  #se anuncia cuantos datos se consiguieron
+  print(paste0("Se obtuvo datos para la Tasa de intervencion BanRep desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
+  print("Fuente: Banco de la Republica de Colombia")
+  #se returna el data frame
+  return(d)
+  
+}
