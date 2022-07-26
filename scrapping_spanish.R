@@ -194,6 +194,7 @@ get.TasaDesempleoCol <- function(){
   rownames(d) <- NULL
   #se vuelven numeros las tasas y se divide en 100
   # d[,2] <- as.numeric(d[,2])/100
+  d[,2] <- as.numeric(d[,2])
   #se anuncia cuantos datos se consiguieron
   print(paste0("Se obtuvo datos para la tasa de desempleo desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
   print("Fuente: Banco de la Republica de Colombia")
