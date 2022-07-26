@@ -432,6 +432,7 @@ get.IBR <- function(nom = "ON"){
   rownames(nominal) <- NULL
   #se anuncia cuantos datos se consiguieron
   print(paste0("Se obtuvo datos para la IBR  ",nom," desde ", nominal$Fecha[1], " hasta ", nominal$Fecha[nrow(nominal)] ))
+  print("Fuente: Banco de la Republica de Colombia")
   #se returna el data frame
   return(nominal)
   
@@ -541,6 +542,7 @@ get.Acciones <- function(accion="BCOLOMBIA"){
   
   #se anuncia cuantos datos se consiguieron
   print(paste0("Se obtuvo datos para el ", accion, " desde ", listaAccion$Fecha[1], " hasta ", listaAccion$Fecha[nrow(listaAccion)] ))
+  print("Fuente: Bolsa de Valores de Colombia")
   #se returna el data frame
   return(listaAccion)
   
