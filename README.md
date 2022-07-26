@@ -6,7 +6,7 @@ Construir modelos econométricos de variables macrofinancieras colombianas tiene
 
 Es cierto que en su mayoría se encuentran gratis en internet. Sin embargo, su búsqueda, importación y armonización suele ser un paso que retrasa de la producción de modelos :hourglass:.
 
-Con esto en mente, este repositorio pretende ser un aporte a la creación de modelos para Colombia, proveyendo un set de funciones de webscrapping de algunos indicadores de interés. Todas las fuentes que se utilizan son públicas y gratis, pero la ventaja de estas funciones es que directamente descargan y armonizan en el ambiente de R sin necesidad de importar o descargar archivos adicionales ¡Solo necesita conexión a internet!
+Con esto en mente, este repositorio pretende ser un aporte a la creación de modelos para Colombia, suministrando un set de funciones de webscrapping de algunos indicadores de interés. Todas las fuentes que se utilizan son públicas y gratis, pero la ventaja de estas funciones es que directamente descargan y armonizan en el ambiente de R sin necesidad de importar o descargar archivos adicionales ¡Solo necesita conexión a internet!
 
 En futuras etapas este repositorio se convertirá en un paquete de R y su desarrollador pretende hacer una versión en Python :smile:. 
 
