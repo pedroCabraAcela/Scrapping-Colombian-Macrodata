@@ -108,4 +108,4 @@ In the foreseeable future, the developer of this repository intends to create an
 	>:pushpin: **ETB:** ETB
 
 - **example_scrapping_macro.R:**
-An example of the usage of these functions on a simple prediction model of 2019's monthly inflation rate. :black_nib:.
+An example of the usage of these functions on a simple prediction model of 2019's monthly inflation rate :black_nib:.
