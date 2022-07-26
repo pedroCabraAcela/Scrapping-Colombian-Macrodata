@@ -61,7 +61,7 @@ One of the main challenges in producing econometric models for Colombian macro-f
 
 Most of the variables are indeed available on the internet for free. However, searching, importing and harmonizing this information is a step that slows down the models' production :hourglass:.
 
-This repository aims to contribute to the econometric models' production by providing a set of webscrapping functions of some of the main macrofinancial indicators. All the sources are public and free, but the advantage of these functions is that they directly download and harmonize the information in R's environment. No need to import or download additional files. You only need an internet connection!
+This repository aims to contribute to the econometric models' production with Colombian data, by providing a set of webscrapping functions of some of the main macrofinancial indicators. All the sources are public and free, but the advantage of these functions is that they directly download and harmonize the information in R's environment. No need to import or download additional files. You only need an internet connection!
 
 In the foreseeable future, the developer of this repository intends to create an R package with these functions and also a Python version :smile:. 
 
