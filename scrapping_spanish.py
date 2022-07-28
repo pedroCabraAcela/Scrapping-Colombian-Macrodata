@@ -9,6 +9,8 @@ import pandas as pd
 import numpy as np
 import csv
 import requests,shutil
+import bs4
+import tempfile
 ###############################################
 # TRM: Superintendencia financiera colombiana
 ##############################################
@@ -38,35 +40,28 @@ def get_TRM():
 ##########################################
 
 def get_IPC():
-    
+    # Function to extract the IPC time serie from DANE.
     #url to retrieve the data from BanRep
-    link = "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xls&BypassCache=true&lang=es&NQUser=publico&NQPassword=publico123&path=%2Fshared%2FSeries%20Estad%C3%ADsticas_T%2F1.%20IPC%20base%202018%2F1.2.%20Por%20a%C3%B1o%2F1.2.5.IPC_Serie_variaciones"
-    #link = "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xls&BypassCache=true&lang=es&path=%2Fshared%2FSeries%20Estad%C3%ADsticas_T%2F1.%20Meta%20de%20inflaci%C3%B3n%20base%202018%2F1.1.INF_Serie%20hist%C3%B3rica%20Meta%20de%20inflaci%C3%B3n%20IQY"
-    print("Extrayendo datos, puede tomar unos minutos")
-    #creating headers
-    file_name = "1.2.5.IPC_Serie_variaciones.xlsx"
-    headers ={}
-    headers["Host"] = "totoro.banrep.gov.co"
-    #headers["User-Agent"] = "Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0"
-    headers["User-Agent"] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'
-    headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-    headers["Accept-Language"] = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3"
-    headers["Accept-Encoding"] = "gzip, deflate"
-    headers["Connection"] = "keep-alive"
-    headers["Content-Type"] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    headers["Content-Disposition"] = "attachment;filename=" + file_name
+    url = "https://www.dane.gov.co/files/investigaciones/ipc/jun22/IPC_Indices.xlsx"  
+    #getting the excel
+    resp = requests.get(url)
+    #writting it in a tempfile
+    tempdir = tempfile.mkdtemp()
+    path_excel = tempdir + "\\" + 'data.xlsx'
+    output = open(path_excel, 'wb')
+    output.write(resp.content)
+    output.close()
+    data = pd.read_excel(path_excel)
+    shutil.rmtree(tempdir)
+    #removing all the rows that we dont need
+    pos1 = np.where(np.array(data.iloc[:,0])=="Mes")[0][0] #first row
+    pos2 = np.where(np.array(data.iloc[:,0])=="Diciembre")[0][0] #last row
+    #cutting the data frame
+    data = data.iloc[pos1:(pos2+1),]
+    data.columns = data.iloc[0]
+    data = data.rename_axis(index=None)
+    data.reset_index(inplace=True, drop=True)
+    data = data.drop(0,axis=0)
+    data = pd.melt(data, id_vars='Mes')
+    #replacing month with the corresponding number
 
-    # #requesting the url
-    # response=requests.get(url=link, headers=headers)
-    # response=response.content
-    
-    
-    # import urllib3
-    # http = urllib3.PoolManager()
-    # r = http.request('GET', link, preload_content=False)
-    # r.read()
-
-
-    # with open('test.xlsx', 'wb') as out_file:
-    #     shutil.copyfileobj(response.raw, out_file)
-    # del response
