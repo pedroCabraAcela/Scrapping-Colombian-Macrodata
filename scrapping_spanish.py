@@ -32,7 +32,7 @@ def get_TRM():
     #printing the summary of the results
     print("Se obtuvo datos para la TRM desde",TRM['Fecha'][0].date(), "hasta", TRM['Fecha'][len(TRM['Fecha'])-1].date())
     print("Fuente: Superintendencia Financiera Colombiana")
-    #se retorna
+    #return
     return(TRM)
 
 #########################################
@@ -63,5 +63,35 @@ def get_IPC():
     data.reset_index(inplace=True, drop=True)
     data = data.drop(0,axis=0)
     data = pd.melt(data, id_vars='Mes')
-    #replacing month with the corresponding number
-
+    data.columns = ["Mes","Ano","IPC"]
+    #replacing month with the corresponding number and years to int
+    data.iloc[:,1] = data.iloc[:,1].astype(int)
+    months = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+    data["month_num"] = int()
+    data['year'] = data['Ano'] #just for reference
+    # moving one month for making easier the following steps
+    for i in range(12):
+        if (i + 2) <= 12:
+            data.loc[data["Mes"]==months[i],"month_num"] = int(i + 2)
+        else:
+            #december + 1 is january from the next year
+            data.loc[data["Mes"]==months[i],"month_num"] = 1
+            data.loc[data["Mes"]==months[i],"year"] = data.loc[data["Mes"]==months[i],"year"] + 1
+    #creating a column of the string of date
+    data["date_str"] = data['year'].astype(str) + "-" + data['month_num'].astype(str) + "-" + "1"
+    #converting to date
+    data["date_str"] = pd.to_datetime(data['date_str'],format="%Y-%m-%d").dt.normalize()
+    #minus one day to have the right date
+    data["date_str"] = data["date_str"] - pd.Timedelta(days=1)
+    #only the data we are gonna use
+    data = data[["date_str","IPC"]]
+    #droppin na
+    data = data.dropna()
+    #sort by date
+    data = data.sort_values(by='date_str',ignore_index=True)
+    data.columns = ["Fecha", "IPC"]
+    #printing the summary of the results
+    print("Se obtuvo datos para el IPC desde",data['Fecha'][0].date(), "hasta", data['Fecha'][len(data['Fecha'])-1].date())
+    print("Fuente: DANE")
+    #return
+    return(data)
