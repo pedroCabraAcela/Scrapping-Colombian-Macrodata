@@ -13,6 +13,7 @@ import bs4
 import tempfile
 from requests_html import AsyncHTMLSession
 import asyncio
+import warnings
 #pip install certifi
 ###############################################
 # TRM: Superintendencia financiera colombiana
@@ -125,6 +126,7 @@ def get_Colcap():
         return(await asession.get(url,headers=headers))
     r = asyncio.run(main(url,headers))
     #r = await asession.get(url,headers=headers)
+    warnings.filterwarnings("ignore")
     r.html.arender()
     #writting it in a tempfile 
     tempdir = tempfile.mkdtemp()
@@ -156,6 +158,72 @@ def get_Colcap():
     print("Fuente: Banco de la Republica de Colombia")
     #return
     return(data)
+
+
+######################################
+# Tasa intervencion: Banco de la republica de Colombia
+######################################
+def get_TasaIntBanRep():
+    # Function to extract the Central Bank's Policy Rate time serie from the Colombian Central Bank.
+    #url to retrieve the data from BanRep    
+    url = "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20Tasa%20de%20intervenci%C3%B3n%20de%20pol%C3%ADtica%20monetaria%2F1.2.TIP_Serie%20hist%C3%B3rica%20diaria%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1"
+    #headers
+    headers = {}
+    headers["Host"]="totoro.banrep.gov.co"
+    headers["User-Agent"] = "Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0"
+    headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    headers["Accept-Language"] = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3"
+    headers["Accept-Encoding"] = "gzip, deflate"
+    headers["Connection"] = "keep-alive"
+    #extracting the url
+    print("Extrayendo datos, puede tomar unos minutos")
+    asession = AsyncHTMLSession()
+    async def main(url,headers):
+        return(await asession.get(url,headers=headers))
+    r = asyncio.run(main(url,headers))
+    #r = await asession.get(url,headers=headers)
+    warnings.filterwarnings("ignore")
+    r.html.arender()
+    #writting it in a tempfile 
+    tempdir = tempfile.mkdtemp()
+    path_excel = tempdir + "\\" + 'data.xlsx'
+    output = open(path_excel, 'wb')
+    output.write(r.content)
+    output.close()
+    data = pd.read_excel(path_excel)
+    shutil.rmtree(tempdir)
+    #leaving the rows we need    
+    pos1 = np.where(np.array(data.iloc[:,0])=="Fecha (dd/mm/aaaa)")[0][0]
+    data = data.iloc[pos1:,:]
+    #changing column names
+    data.columns = data.iloc[0]
+    data = data.rename_axis(index=None)
+    data.reset_index(inplace=True, drop=True)
+    data = data.drop(0,axis=0)
+    data.reset_index(inplace=True, drop=True)
+    #leaving only the two first columns and dropping na
+    data = data.iloc[:,0:2]
+    data = data.dropna()
+    data.columns = ["Fecha", "tasaIntBanRep_%"]
+    #to date
+    data["Fecha"] = pd.to_datetime(data['Fecha']).dt.normalize()
+    #sorting by date
+    data = data.sort_values(by='Fecha',ignore_index=True)
+    #printing the summary of the results
+    print("Se obtuvo datos para la Tasa de intervencion BanRep desde",data['Fecha'][0].date(), "hasta", data['Fecha'][len(data['Fecha'])-1].date())
+    print("Fuente: Banco de la Republica de Colombia")
+    #return
+    return(data)
+
+
+
+
+
+
+
+
+
+
 
 
 ######################################
