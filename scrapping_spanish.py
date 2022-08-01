@@ -215,9 +215,129 @@ def get_TasaIntBanRep():
     #return
     return(data)
 
-
-
-
+######################################
+#  Tasa de desempleo en Colombia: Banco de la republica de Colombia
+######################################
+def get_TasaDesempleoCol():
+    # Function to extract the unemployment rate time serie from the Colombian Central Bank.
+    #url to retrieve the data from BanRep    
+    url = "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20Empleo%20y%20desempleo%2F1.1%20Serie%20hist%C3%B3rica%2F1.1.1.EMP_Total%20nacional%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1"
+    #headers
+    headers = {}
+    headers["Host"]="totoro.banrep.gov.co"
+    headers["User-Agent"] = "Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0"
+    headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    headers["Accept-Language"] = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3"
+    headers["Accept-Encoding"] = "gzip, deflate"
+    headers["Connection"] = "keep-alive"
+    #extracting the url
+    print("Extrayendo datos, puede tomar unos minutos")
+    asession = AsyncHTMLSession()
+    async def main(url,headers):
+        return(await asession.get(url,headers=headers))
+    r = asyncio.run(main(url,headers))
+    #r = await asession.get(url,headers=headers)
+    warnings.filterwarnings("ignore")
+    r.html.arender()
+    #writting it in a tempfile 
+    tempdir = tempfile.mkdtemp()
+    path_excel = tempdir + "\\" + 'data.xlsx'
+    output = open(path_excel, 'wb')
+    output.write(r.content)
+    output.close()
+    data = pd.read_excel(path_excel)
+    shutil.rmtree(tempdir)
+    #leaving the rows we need  
+    pos1 = np.where(np.array(data.iloc[:,1].astype(str).str.contains("^Tasa")))[0][0]
+    data = data.iloc[pos1:,:]
+    #changing column names
+    data.columns = data.iloc[0]
+    data = data.rename_axis(index=None)
+    data.reset_index(inplace=True, drop=True)
+    data = data.drop(0,axis=0)
+    data.reset_index(inplace=True, drop=True)
+    #leaving only the first and third columns and dropping na
+    data = data.iloc[:,[0,2]]
+    data = data.dropna()
+    data.columns = ["Fecha", "tasa_desempleo_%"]
+    #creating a date with Fecha
+    data['fecha'] = pd.to_datetime((data['Fecha'].astype(str) + "-1"),format="%Y-%m-%d").dt.normalize()
+    #moving to the last day of the month
+    data['fecha'] = data['fecha'] - pd.Timedelta(days=1) + pd.DateOffset(months=1)
+    #only two columns again
+    data['Fecha'] = data['fecha']
+    data = data[["Fecha", "tasa_desempleo_%"]]
+    #sorting by date
+    data = data.sort_values(by='Fecha',ignore_index=True)
+    #printing the summary of the results
+    print("Se obtuvo datos para la Tasa de desempleo desde",data['Fecha'][0].date(), "hasta", data['Fecha'][len(data['Fecha'])-1].date())
+    print("Fuente: Banco de la Republica de Colombia")
+    #return
+    return(data)
+######################################
+# IBR: Banco de la republica de Colombia
+######################################
+# def get_TasaIntBanRep(nom = "ON"):
+#     # Function to extract the nominal IBR rate time serie from the Colombian Central Bank. 
+    
+#     # links available
+#     links = ["https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20IBR%2F%201.1.IBR_Plazo%20overnight%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1",
+#           "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20IBR%2F%201.2.IBR_Plazo%20un%20mes%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1",
+#           "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20IBR%2F%201.3.IBR_Plazo%20tres%20meses%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1",
+#           "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&Path=%2fshared%2fSeries%20Estad%C3%ADsticas_T%2f1.%20IBR%2f1.5.IBR_Plazo%20seis%20meses%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1"
+#           ]
+    
+#     # getting the url of the period from nom
+#     url = links[["ON","1M", "3M", "6M"].index(nom)]
+#     #headers
+#     headers = {}
+#     headers["Host"]="totoro.banrep.gov.co"
+#     headers["User-Agent"] = "Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0"
+#     headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+#     headers["Accept-Language"] = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3"
+#     headers["Accept-Encoding"] = "gzip, deflate"
+#     headers["Connection"] = "keep-alive"
+#     #extracting the url
+#     print("Extrayendo datos, puede tomar unos minutos")
+#     asession = AsyncHTMLSession()
+#     async def main(url,headers):
+#         r = await asession.get(url,headers=headers)
+#         await r.html.arender()
+#         return(r)
+#     r = asyncio.run(main(url,headers))
+#     #r = await asession.get(url,headers=headers)
+#     warnings.filterwarnings("ignore")
+#     r.html.arender()
+#     #writting it in a tempfile 
+#     tempdir = tempfile.mkdtemp()
+#     path_excel = tempdir + "\\" + 'data.xlsx'
+#     output = open(path_excel, 'wb')
+#     output.write(r.content)
+#     output.close()
+#     data = pd.read_excel(path_excel)
+#     shutil.rmtree(tempdir)
+#     #leaving the rows we need    
+#     pos1 = np.where(np.array(data.iloc[:,0])=="Fecha (dd/mm/aaaa)")[0][0]
+#     data = data.iloc[pos1:,:]
+#     #changing column names
+#     data.columns = data.iloc[0]
+#     data = data.rename_axis(index=None)
+#     data.reset_index(inplace=True, drop=True)
+#     data = data.drop(0,axis=0)
+#     data.reset_index(inplace=True, drop=True)
+#     #leaving only the two first columns and dropping na
+#     data = data.iloc[:,0:2]
+#     data = data.dropna()
+#     data.columns = ["Fecha", "tasaIntBanRep_%"]
+#     #to date
+#     data["Fecha"] = pd.to_datetime(data['Fecha']).dt.normalize()
+#     #sorting by date
+#     data = data.sort_values(by='Fecha',ignore_index=True)
+#     #printing the summary of the results
+#     print("Se obtuvo datos para la Tasa de intervencion BanRep desde",data['Fecha'][0].date(), "hasta", data['Fecha'][len(data['Fecha'])-1].date())
+#     print("Fuente: Banco de la Republica de Colombia")
+#     #return
+#     return(data)
 
 
 
