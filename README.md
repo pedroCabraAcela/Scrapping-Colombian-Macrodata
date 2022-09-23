@@ -8,7 +8,11 @@ Es cierto que en su mayoría se encuentran gratis en internet. Sin embargo, su b
 
 Con esto en mente, este repositorio pretende ser un aporte a la creación de modelos para Colombia, suministrando un set de funciones de webscrapping de algunos indicadores de interés. Todas las fuentes que se utilizan son públicas y gratis, pero la ventaja de estas funciones es que directamente descargan y armonizan en el ambiente de R sin necesidad de importar o descargar archivos adicionales ¡Solo necesita conexión a internet!
 
-En futuras etapas este repositorio se convertirá en un paquete de R y su desarrollador pretende hacer una versión en Python :smile:. 
+¡El paquete para R con las últimas actualizaciones ya esta disponible en CRAN con el nombre "macrocol"!
+
+Puede instalarse directamente (install.packages) o buscar su última versión en el siguiente [link](https://cran.r-project.org/web/packages/macrocol/index.html).
+
+En futuras etapas el desarrollador de este repositorio pretende hacer una versión en Python :smile:. 
 
 ### ¿Qué encontrará en este repositorio? :pencil2:
  - **scrapping_spanish.R:**
@@ -63,7 +67,11 @@ Most of the variables are indeed available on the internet for free. However, se
 
 This repository aims to contribute to the econometric models' production with Colombian data, by providing a set of webscrapping functions of some of the main macrofinancial indicators. All the sources are public and free, but the advantage of these functions is that they directly download and harmonize the information in R's environment. No need to import or download additional files. You only need an internet connection!
 
-In the foreseeable future, the developer of this repository intends to create an R package with these functions and also a Python version :smile:. 
+The R package with all the functions is now available in CRAN. Its name is "macrocol"!
+
+You can directly install it on your computer (install.packages) or you can look for the last updates at the following [link](https://cran.r-project.org/web/packages/macrocol/index.html). 
+
+In the foreseeable future, the developer of this repository intends to create a Python version of this package :smile:. 
 
 ### What´s inside? :pencil2:
  - **scrapping_spanish.R:**
