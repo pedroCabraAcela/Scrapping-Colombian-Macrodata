@@ -15,24 +15,26 @@ packages_download <- function(){
   if (!require(httr))install.packages("httr");library(httr)
   if (!require(lubridate))install.packages("lubridate");library(lubridate)
   if (!require(readxl))install.packages("readxl");library(readxl)
+  if (!require(utils))install.packages("utils");library(utils)
+  if (!require(stats))install.packages("stats");library(stats)
 }             
 
 
-###############################################
-# TRM: Superintendencia financiera colombiana
-##############################################
-
+#' TRM extraction
+#'
+#' Function to extract the TRM (COP/USD) time serie from the Colombian Financial Supervision Office.
+#' @return The dataframe with dates and the TRM.
+#' @examples
+#' \dontrun{
+#' TRM <- get.TRM();
+#' }
+#' @export
 get.TRM <- function(){
   
-  #' Funcion que hace webscrapping del csv de Superintendencia financiera colombiana
-  #' para obtener la TRM diaria
-  #'
-  #' OUTPUT:
-  #' @return data frame con las fechas y la trm
-  
-  print("Extrayendo datos, puede tomar unos minutos")
+  # print("Extrayendo datos, puede tomar unos minutos")
+  message("Extrayendo datos, puede tomar unos minutos")
   #se extraen los datos de la trm de la super intendencia en formato csv
-  TRM <- read.csv(url("https://www.datos.gov.co/api/views/32sa-8pi3/rows.csv?accessType=DOWNLOAD"))
+  TRM <- utils::read.csv(url("https://www.datos.gov.co/api/views/32sa-8pi3/rows.csv?accessType=DOWNLOAD"))
   #se arregla el formato
   ##se dejan las columnas fecha y valor
   TRM <- TRM[,c(3,1)]
@@ -43,53 +45,56 @@ get.TRM <- function(){
   ##se quitan los nombres de las filas y se le pone nombres a las variables
   rownames(TRM) <- NULL
   names(TRM) <- c("Fecha", "TRM")
-  
   #se anuncia cuantos datos se consiguieron
-  print(paste0("Se obtuvo datos para la TRM desde ", 
-               TRM$Fecha[1], " hasta ", TRM$Fecha[nrow(TRM)] ))
-  print("Fuente: Superintendencia Financiera Colombiana")
+  # print(paste0("Se obtuvo datos para la TRM desde ",
+  #              TRM$Fecha[1], " hasta ", TRM$Fecha[nrow(TRM)] ))
+  # print("Fuente: Superintendencia Financiera Colombiana")
+  
+  message(paste0("Se obtuvo datos para la TRM desde ",
+                 TRM$Fecha[1], " hasta ", TRM$Fecha[nrow(TRM)] ))
+  message("Fuente: Superintendencia Financiera Colombiana")
   #se retorna
   return(TRM)
 }
 
-#########################################
-# IPC: Banco de la republica de Colombia
-##########################################
-
+#' IPC extraction
+#'
+#' Function to extract the Colombian CPI time serie from the Colombian Central Bank.
+#' @return The dataframe with dates and the Colombian CPI.
+#' @examples
+#' \dontrun{
+#' IPC <- get.IPC();
+#' }
+#' @export
 get.IPC <- function(){
-  
-  #' Funcion que hace webscrapping a los exceles del Banco de la republica de Colombia
-  #' para obtener el historico del IPC en niveles mensuales
-  #'
-  #' OUTPUT:
-  #' @return data frame con las fechas y el IPC
   
   #link del excel del ipc del banrep
   link <- "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xls&BypassCache=true&lang=es&NQUser=publico&NQPassword=publico123&path=%2Fshared%2FSeries%20Estad%C3%ADsticas_T%2F1.%20IPC%20base%202018%2F1.2.%20Por%20a%C3%B1o%2F1.2.5.IPC_Serie_variaciones"
   
   #se hace un print de que inicio el proceso
-  print("Extrayendo datos, puede tomar unos minutos")
+  # print("Extrayendo datos, puede tomar unos minutos")
+  message("Extrayendo datos, puede tomar unos minutos")
   #se crea un archov temporal
   path_excel <- tempfile(fileext = ".xlsx")
   
   #se extraen los datos de la descarga
   
-  while(class(try(read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
-    r <- GET(link,
-            add_headers(
-              Host="totoro.banrep.gov.co",
-              `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
-              Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-              `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
-              `Accept-Encoding` = "gzip, deflate",
-              Connection = "keep-alive"
-            ))
+  while(class(try(openxlsx::read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
+    r <- httr::GET(link,
+                   httr::add_headers(
+                     Host="totoro.banrep.gov.co",
+                     `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
+                     Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                     `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+                     `Accept-Encoding` = "gzip, deflate",
+                     Connection = "keep-alive"
+                   ))
     #se pasan a formato excel
-    bin <- content(r, "raw")
+    bin <- httr::content(r, "raw")
     writeBin(bin, path_excel)
     
     #se leen
-    d <- try(read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T)
+    d <- try(openxlsx::read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T)
   }
   
   #eliminando el temporal
@@ -101,7 +106,7 @@ get.IPC <- function(){
   d[,1] <- suppressWarnings(as.numeric(d[,1]))
   ##se deja de una vez solo lo que no sea NA en ninguna de las dos columnas
   ##asi se borra tanto lo que era texto antes como lo que no tiene dato
-  d <- d[complete.cases(d),]
+  d <- d[stats::complete.cases(d),]
   ##las fechas estan en numerico pero es un formato anho mes, se ponen todas al final
   ##del mes
   ###se extrae el anho (los primeros 4 numeros)
@@ -126,54 +131,56 @@ get.IPC <- function(){
   #se vuelven numeros las tasas
   d[,2] <- as.numeric(d[,2])
   #se anuncia cuantos datos se consiguieron
-  print(paste0("Se obtuvo datos para el IPC desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
-  print("Fuente: Banco de la Republica de Colombia")
+  # print(paste0("Se obtuvo datos para el IPC desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
+  # print("Fuente: Banco de la Republica de Colombia")
+  message(paste0("Se obtuvo datos para el IPC desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
+  message("Fuente: Banco de la Republica de Colombia")
   #se returna el data frame
   return(d)
   
 }
 
-###################################################################
-# Tasa de desempleo en Colombia: Banco de la republica de Colombia
-###################################################################
-
+#' Colombian Unemployment Rate extraction
+#'
+#' Function to extract the Colombian unemployment rate time serie from the Colombian Central Bank.
+#' @return The dataframe with dates and the Colombian Unemployment Rate.
+#' @examples
+#' \dontrun{
+#' unemp <- get.TasaDesempleoCol();
+#' }
+#' @export
 get.TasaDesempleoCol <- function(){
-  
-  #' Funcion que hace webscrapping a los exceles del Banco de la republica de Colombia
-  #' para obtener el historico de la tasa de desempleo
-  #'
-  #' OUTPUT:
-  #' @return data frame con las fechas y la tasa de desempleo
   
   #link del excel de la tasa de desempleo del banrep
   link <- "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20Empleo%20y%20desempleo%2F1.1%20Serie%20hist%C3%B3rica%2F1.1.1.EMP_Total%20nacional%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1"
   
   #se hace un print de que inicio el proceso
-  print("Extrayendo datos, puede tomar unos minutos")
+  # print("Extrayendo datos, puede tomar unos minutos")
+  message("Extrayendo datos, puede tomar unos minutos")
   #se crea un archov temporal
   path_excel <- tempfile(fileext = ".xlsx")
   
   #se extraen los datos de la descarga
   
-  while(class(try(read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
-    r <- GET(link,
-             add_headers(
-               Host="totoro.banrep.gov.co",
-               `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
-               Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-               `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
-               `Accept-Encoding` = "gzip, deflate",
-               Connection = "keep-alive"
-             ))
+  while(class(try(openxlsx::read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
+    r <- httr::GET(link,
+                   httr::add_headers(
+                     Host="totoro.banrep.gov.co",
+                     `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
+                     Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                     `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+                     `Accept-Encoding` = "gzip, deflate",
+                     Connection = "keep-alive"
+                   ))
     #se pasan a formato excel
-    bin <- content(r, "raw")
+    bin <- httr::content(r, "raw")
     writeBin(bin, path_excel)
     
     #se leen
-    d <- try(read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T)
+    d <- try(openxlsx::read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T)
   }
   #se borra el excel
-  file.remove(path_excel)
+  unlink(path_excel)
   
   #se arregla el formato
   ##se dejan solo las fechas y la tasa de desempleo (se busca en las filas 'MES' y en las columnas
@@ -182,10 +189,10 @@ get.TasaDesempleoCol <- function(){
   ##la primera fila se quita
   d <- d[-1,]
   ##se pasa la primera coluna a fecha (lo que no funciona asi es porque eran filas que no sirven)
-  d[,1] <- as.Date(paste0(d[,1],'-1'))%m+%months(1)-1
+  d[,1] <- lubridate::`%m+%`(as.Date(paste0(d[,1],'-1')),months(1)) - 1
   ##se deja de una vez solo lo que no sea NA en ninguna de las dos columnas
   ##asi se borra tanto lo que era texto antes como lo que no tiene dato
-  d <- d[complete.cases(d),]
+  d <- d[stats::complete.cases(d),]
   
   #se arreglan los nombres de las columnas
   names(d) <- c("Fecha", "tasa_desempleo_%")
@@ -197,55 +204,59 @@ get.TasaDesempleoCol <- function(){
   # d[,2] <- as.numeric(d[,2])/100
   d[,2] <- as.numeric(d[,2])
   #se anuncia cuantos datos se consiguieron
-  print(paste0("Se obtuvo datos para la tasa de desempleo desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
-  print("Fuente: Banco de la Republica de Colombia")
+  # print(paste0("Se obtuvo datos para la tasa de desempleo desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
+  # print("Fuente: Banco de la Republica de Colombia")
+  # print(paste0("Se obtuvo datos para la tasa de desempleo desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
+  # print("Fuente: Banco de la Republica de Colombia")
+  message(paste0("Se obtuvo datos para la tasa de desempleo desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
+  message("Fuente: Banco de la Republica de Colombia")
   #se returna el data frame
   return(d)
   
 }
 
-######################################
-# Colcap: Banco de la republica de Colombia
-######################################
+#' Colcap extraction
+#'
+#' Function to extract the Colcaptime serie from the Colombian Central Bank.
+#' @return The dataframe with dates and the Colcap.
+#' @examples
+#' \dontrun{
+#' colcap <- get.Colcap();
+#' }
+#' @export
 get.Colcap <-function(){
-  
-  #' Funcion que hace webscrapping a los exceles del Banco de la republica de Colombia
-  #' para obtener el colcap en niveles diarios
-  #'
-  #' OUTPUT:
-  #' @return data frame con las fechas y el colcap
-  
   
   #link del excel del ipc del banrep
   link <- "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2FSeries%20Estad%C3%ADsticas_T%2F1.%20%C3%8Dndices%20de%20mercado%20burs%C3%A1til%20colombiano%2F1.1.%20IGBC%2C%20IBB%20e%20IBOMED%2F1.1.1.IMBC_COLCAP_IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1"
   
   
   #se hace un print de que inicio el proceso
-  print("Extrayendo datos, puede tomar unos minutos")
+  # print("Extrayendo datos, puede tomar unos minutos")
+  message("Extrayendo datos, puede tomar unos minutos")
   #se crea un archov temporal
   path_excel <- tempfile(fileext = ".xlsx")
   
   #se extraen los datos de la descarga
   
-  while(class(try(read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
-    r <- GET(link,
-             add_headers(
-               Host="totoro.banrep.gov.co",
-               `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
-               Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-               `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
-               `Accept-Encoding` = "gzip, deflate",
-               Connection = "keep-alive"
-             ))
+  while(class(try(openxlsx::read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
+    r <- httr::GET(link,
+                   httr::add_headers(
+                     Host="totoro.banrep.gov.co",
+                     `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
+                     Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                     `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+                     `Accept-Encoding` = "gzip, deflate",
+                     Connection = "keep-alive"
+                   ))
     #se pasan a formato excel
-    bin <- content(r, "raw")
+    bin <- httr::content(r, "raw")
     writeBin(bin, path_excel)
     
     #se leen
-    d <- try(read.xlsx(path_excel, sheet = 1, detectDates = T),silent=T)
+    d <- try(openxlsx::read.xlsx(path_excel, sheet = 1, detectDates = T),silent=T)
   }
   #se borra el excel
-  file.remove(path_excel)
+  unlink(path_excel)
   
   #SI CAMBIA EL FORMATO DE LOS EXCELES ES POSIBLE QUE HAYA QUE MODIFICAR ESTO
   #se arregla el formato
@@ -253,7 +264,7 @@ get.Colcap <-function(){
   d <- d[,1:2]
   ##se deja de una vez solo lo que no sea NA en ninguna de las dos columnas
   ##asi se borra tanto lo que era texto antes como lo que no tiene dato
-  d <- d[complete.cases(d),]
+  d <- d[stats::complete.cases(d),]
   ##se quita la primera fila
   d <- d[-1,]
   ##se ponen los nombres a las columnas
@@ -270,62 +281,63 @@ get.Colcap <-function(){
   #se vuelven numeros las tasas
   d[,2] <- as.numeric(d[,2])
   #se anuncia cuantos datos se consiguieron
-  print(paste0("Se obtuvo datos para el Colcap desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
-  print("Fuente: Banco de la Republica de Colombia")
-  #se returna el data frame
+  # print(paste0("Se obtuvo datos para el Colcap desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
+  # print("Fuente: Banco de la Republica de Colombia")
+  message(paste0("Se obtuvo datos para el Colcap desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
+  message("Fuente: Banco de la Republica de Colombia")
+  #se retorna el data frame
   return(d)
   
 }
 
-######################################
-# Tasa intervencion: Banco de la republica de Colombia
-######################################
-
+#' Colombian Central Bank's Policy Rate extraction
+#'
+#' Function to extract the Colombian Central Bank's Policy Rate time serie from the Colombian Central Bank.
+#' @return The dataframe with dates and the Policy Rate.
+#' @examples
+#' \dontrun{
+#' intRate <- get.TasaIntBanRep();
+#' }
+#' @export
 get.TasaIntBanRep <- function(){
-  
-  #' Funcion que hace webscrapping a los exceles del Banco de la republica de Colombia
-  #' para obtener la tasa de intervencion
-  #'
-  #' OUTPUT:
-  #' @return data frame con las fechas y la tasa de intervencion
-  
   
   #link del excel del ipc del banrep
   link <- "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20Tasa%20de%20intervenci%C3%B3n%20de%20pol%C3%ADtica%20monetaria%2F1.2.TIP_Serie%20hist%C3%B3rica%20diaria%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1"
   
   
   #se hace un print de que inicio el proceso
-  print("Extrayendo datos, puede tomar unos minutos")
+  # print("Extrayendo datos, puede tomar unos minutos")
+  message("Extrayendo datos, puede tomar unos minutos")
   #se crea un archov temporal
   path_excel <- tempfile(fileext = ".xlsx")
   
   #se extraen los datos de la descarga
   
-  while(class(try(read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
-    r <- GET(link,
-             add_headers(
-               Host="totoro.banrep.gov.co",
-               `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
-               Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-               `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
-               `Accept-Encoding` = "gzip, deflate",
-               Connection = "keep-alive"
-             ))
+  while(class(try(openxlsx::read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
+    r <- httr::GET(link,
+                   httr::add_headers(
+                     Host="totoro.banrep.gov.co",
+                     `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
+                     Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                     `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+                     `Accept-Encoding` = "gzip, deflate",
+                     Connection = "keep-alive"
+                   ))
     #se pasan a formato excel
-    bin <- content(r, "raw")
+    bin <- httr::content(r, "raw")
     writeBin(bin, path_excel)
     
     #se leen
-    d <- try(read.xlsx(path_excel, sheet = 1, detectDates = T),silent=T)
+    d <- try(openxlsx::read.xlsx(path_excel, sheet = 1, detectDates = T),silent=T)
   }
   #se borra el excel
-  file.remove(path_excel)
+  unlink(path_excel)
   
   ##se borra desde la posicion que dice Fecha
   posQuitar <- grep("Fecha",d[,1])
   d <- d[-c(1:posQuitar),]
   ##se quita lo que no este completo
-  d <- d[complete.cases(d),]
+  d <- d[stats::complete.cases(d),]
   ##se convierte en fecha la primera columna
   d[,1] <- as.Date(d[,1])
   ##se cambian los nombres
@@ -337,28 +349,38 @@ get.TasaIntBanRep <- function(){
   #se vuelven numeros las tasas
   d[,2] <- as.numeric(d[,2])
   #se anuncia cuantos datos se consiguieron
-  print(paste0("Se obtuvo datos para la Tasa de intervencion BanRep desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
-  print("Fuente: Banco de la Republica de Colombia")
+  # print(paste0("Se obtuvo datos para la Tasa de intervencion BanRep desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
+  # print("Fuente: Banco de la Republica de Colombia")
+  message(paste0("Se obtuvo datos para la Tasa de intervencion BanRep desde ", d$Fecha[1], " hasta ", d$Fecha[nrow(d)] ))
+  message("Fuente: Banco de la Republica de Colombia")
   #se returna el data frame
   return(d)
   
 }
 
-######################################
-# IBR: Banco de la republica de Colombia
-######################################
+#' IBR extraction
+#'
+#' Function to extract the nominal IBR rate time serie from the Colombian Central Bank.
+#' @param nom The interest rate period. \cr
+#' The periods available are: \cr
+#' \itemize{
+#'  \item ON: Overnight
+#'  \item 1M: 1 Month
+#'  \item 3M: 3 Months
+#'  \item 6M: 6 Months
+#' }
+#' Default is "ON".
+#' @return The dataframe with dates and the IBR.
+#' @examples
+#' \dontrun{
+#' ON <- get.IBR("ON");
+#' M1 <- get.IBR("1M");
+#' M3 <- get.IBR("3M");
+#' M6 <- get.IBR("6M");
+#' }
+#' @export
 
 get.IBR <- function(nom = "ON"){
-  
-  #' Funcion que hace webscrapping a los exceles del Banco de la republica de Colombia
-  #' para obtene la IBR nominal al  plazo que se desee
-  #'
-  #' INPUT:
-  #' @param nom: plazo de la tasa que se quiere. Puede ser ON, 1M, 3M o 6M y predeterminadamente
-  #' se saca ON
-  #'
-  #' OUTPUT:
-  #' @return data frame con las fechas y las tasas a los plazos que se haya solicitado
   
   #se buscan la posicion de los nodos que se quieren extraer
   posNodos <- grep(paste(nom,collapse="|"),c("ON","1M", "3M", "6M"))
@@ -366,40 +388,41 @@ get.IBR <- function(nom = "ON"){
   #Son los links de descargade cada uno de los nodos "ON","1M", "3M", "6M".
   #Si cambian los links hay que cambiar este vector
   links <- c("https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20IBR%2F%201.1.IBR_Plazo%20overnight%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1",
-            "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20IBR%2F%201.2.IBR_Plazo%20un%20mes%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1",
-            "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20IBR%2F%201.3.IBR_Plazo%20tres%20meses%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1",
-            "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&Path=%2fshared%2fSeries%20Estad%C3%ADsticas_T%2f1.%20IBR%2f1.5.IBR_Plazo%20seis%20meses%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1"
-            )
+             "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20IBR%2F%201.2.IBR_Plazo%20un%20mes%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1",
+             "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&path=%2Fshared%2fSeries%20Estad%c3%adsticas_T%2F1.%20IBR%2F%201.3.IBR_Plazo%20tres%20meses%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1",
+             "https://totoro.banrep.gov.co/analytics/saw.dll?Download&Format=excel2007&Extension=.xlsx&BypassCache=true&Path=%2fshared%2fSeries%20Estad%C3%ADsticas_T%2f1.%20IBR%2f1.5.IBR_Plazo%20seis%20meses%20nominal%20para%20un%20rango%20de%20fechas%20dado%20IQY&lang=es&NQUser=publico&NQPassword=publico123&SyncOperation=1"
+  )
   
   #se sacan solo los nodos que se quieren
   link <- links[posNodos]
   
   #se hace un print de que inicio el proceso
-  print("Extrayendo datos, puede tomar unos minutos")
+  # print("Extrayendo datos, puede tomar unos minutos")
+  message("Extrayendo datos, puede tomar unos minutos")
   #se crea un archov temporal
   path_excel <- tempfile(fileext = ".xlsx")
   
   #se extraen los datos de la descarga
   
-  while(class(try(read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
-    r <- GET(link,
-             add_headers(
-               Host="totoro.banrep.gov.co",
-               `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
-               Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-               `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
-               `Accept-Encoding` = "gzip, deflate",
-               Connection = "keep-alive"
-             ))
+  while(class(try(openxlsx::read.xlsx(path_excel, sheet = 1, detectDates = F),silent=T))=="try-error"){
+    r <- httr::GET(link,
+                   httr::add_headers(
+                     Host="totoro.banrep.gov.co",
+                     `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
+                     Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                     `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+                     `Accept-Encoding` = "gzip, deflate",
+                     Connection = "keep-alive"
+                   ))
     #se pasan a formato excel
-    bin <- content(r, "raw")
+    bin <- httr::content(r, "raw")
     writeBin(bin, path_excel)
     
     #se leen
-    d <- try(read.xlsx(path_excel, sheet = 1, detectDates = T),silent=T)
+    d <- try(openxlsx::read.xlsx(path_excel, sheet = 1, detectDates = T),silent=T)
   }
   #se borra el excel
-  file.remove(path_excel)
+  unlink(path_excel)
   
   #SI CAMBIA EL FORMATO DE LOS EXCELES ES POSIBLE QUE HAYA QUE MODIFICAR ESTO
   #se dejan solo las fechas y la tasa nominal
@@ -420,10 +443,10 @@ get.IBR <- function(nom = "ON"){
   ##se divide en 100 para que quede como una tasa normal
   #d[,2] <- (d[,2])/100
   ##se dejan solo los que tengan fecha y tasa
-  d <- d[complete.cases(d),]
+  d <- d[stats::complete.cases(d),]
   nominal <- d
   #se dejan solo las fechas que tienen dato para todas las tasas
-  nominal <- nominal[complete.cases(nominal),]
+  nominal <- nominal[stats::complete.cases(nominal),]
   #se convierte en fecha la variable de fecha
   nominal$Fecha <- as.Date(nominal$Fecha)
   #se ordena
@@ -431,41 +454,47 @@ get.IBR <- function(nom = "ON"){
   #se quitan los nombres de las filas
   rownames(nominal) <- NULL
   #se anuncia cuantos datos se consiguieron
-  print(paste0("Se obtuvo datos para la IBR  ",nom," desde ", nominal$Fecha[1], " hasta ", nominal$Fecha[nrow(nominal)] ))
-  print("Fuente: Banco de la Republica de Colombia")
+  # print(paste0("Se obtuvo datos para la IBR  ",nom," desde ", nominal$Fecha[1], " hasta ", nominal$Fecha[nrow(nominal)] ))
+  # print("Fuente: Banco de la Republica de Colombia")
+  message(paste0("Se obtuvo datos para la IBR  ",nom," desde ", nominal$Fecha[1], " hasta ", nominal$Fecha[nrow(nominal)] ))
+  message("Fuente: Banco de la Republica de Colombia")
   #se returna el data frame
   return(nominal)
   
 }
 
-######################################
-# Acciones: Bolsa de Valores de Colombia BVC
-######################################
-get.Acciones <- function(accion="BCOLOMBIA"){
-  
-  #' Funcion que hace webscrapping a los exceles de la BVC para obtener el precio diario
-  #' de la accion que se desee
-  #' La pagina de BVC solo permite extraer lapsos de 6 meses a la vez, por lo que 
-  #' es una extraccion que toma su tiempo.
-  
-  #' IMPUT:
-  #' @param accion: Accion de la que se quieren datos, por el momento se puede:
-  #'  Bancolombia: "BCOLOMBIA",
-  #'  Ecopetrol: "ECOPETROL",
-  #'  Exito: "EXITO",
-  #'  Avianca: "AVIANCA",
-  #'  Grupo Sura: "GRUPOSURA",
-  #'  Grupo Aval: "GRUPOAVAL"
-  #'  ETB: "ETB"
-  #'  La predeterminada es BCOLOMBIA
-  
-  #' OUTPUT:
-  #' @return data frame con las fechas y los datos de la accion
+#' Colombian Assets extraction
+#'
+#' Function to extract the price and volume time series of some Colombian assets from the "Bolsa de Valores de Colombia" (BVC).
+#' If it takes more than 5 minutes is because the BVC's Server is not correctly working and it is better to try later.
+#' @param accion The asset's ticket. \cr
+#' The assets available are: \cr
+#'  \itemize{
+#'  \item Bancolombia: "BCOLOMBIA";
+#'  \item Ecopetrol: "ECOPETROL";
+#'  \item Exito: "EXITO";
+#'  \item Avianca: "AVIANCA";
+#'  \item Grupo Sura: "GRUPOSURA";
+#'  \item Grupo Aval: "GRUPOAVAL";
+#'  \item ETB: "ETB";
+#'  }
+#' @param verbose print the dates already extracted. Default FALSE.
+#' Default is "BCOLOMBIA".
+#' @return The dataframe with dates and the asset prices and volume.
+#' @examples
+#' \dontrun{
+#' BCOLOMBIA <- get.Acciones("BCOLOMBIA");
+#' ECOPETROL <- get.Acciones("ECOPETROL");
+#' EXITO <- get.Acciones("EXITO");
+#' AVIANCA <- get.Acciones("AVIANCA");
+#' }
+#' @export
+get.Acciones <- function(accion="BCOLOMBIA",verbose = FALSE){
   
   #valores que se extraeran
   nom <- c("Volumen","Precio Cierre","Precio Mayor","Precio Medio","Precio Menor")
   #se define la fecha de hoy e inicial
-  hoy <- as.Date(today())
+  hoy <- as.Date(lubridate::today())
   fechaIni <- as.Date("2011-1-1")
   
   
@@ -476,7 +505,8 @@ get.Acciones <- function(accion="BCOLOMBIA"){
   if(fechasExtraer[length(fechasExtraer)]!=hoy){fechasExtraer = c(fechasExtraer,hoy)}
   
   #se hace un print de que inicio el proceso
-  print("Extrayendo datos, puede tomar unos minutos")
+  #print("Extrayendo datos, puede tomar unos minutos")
+  message("Extrayendo datos, puede tomar unos minutos")
   #se crea un archov temporal
   path_excel <- tempfile(fileext = ".xlsx")
   
@@ -484,27 +514,49 @@ get.Acciones <- function(accion="BCOLOMBIA"){
     
     #link del excel de la accion del banrep
     link <- paste0("https://www.bvc.com.co/mercados/DescargaXlsServlet?archivo=acciones_detalle&nemo=",
-                  accion,"&tipoMercado=1&fechaIni=",fechasExtraer[x]+1,"&fechaFin=",
-                  fechasExtraer[x+1])
-    print(paste("Extrayendo de",fechasExtraer[x]+1,"hasta",fechasExtraer[x+1]))
-    #se extraen los datos
-    r <- GET(link,
-             add_headers(
-               Host="totoro.banrep.gov.co",
-               `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
-               Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-               `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
-               `Accept-Encoding` = "gzip, deflate",
-               Connection = "keep-alive"
-             ))
-    #se pasan a formato excel
-    bin <- content(r, "raw")
-    writeBin(bin, path_excel)
+                   accion,"&tipoMercado=1&fechaIni=",fechasExtraer[x]+1,"&fechaFin=",
+                   fechasExtraer[x+1])
+    if(verbose){
+      cat(paste("Extrayendo de",fechasExtraer[x]+1,"hasta",fechasExtraer[x+1]))
+    }
+    
+    
+    
+    # #se extraen los datos
+    # r <- httr::GET(link,
+    #          httr::add_headers(
+    #            `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
+    #            Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    #            `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+    #            `Accept-Encoding` = "gzip, deflate",
+    #            Connection = "keep-alive"
+    #          ))
+    # #se pasan a formato excel
+    # bin <- httr::content(r, "raw")
+    # writeBin(bin, path_excel)
+    
+    while(class(try(openxlsx::read.xlsx(path_excel, sheet = 1),silent=T))=="try-error"){
+      r <- httr::GET(link,
+                     httr::add_headers(
+                       Host="totoro.banrep.gov.co",
+                       `User-Agent`="Mozilla/5.0 (Windows NT 6.3; WOW64; rv:43.0) Gecko/20100101 Firefox/43.0",
+                       Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                       `Accept-Language` = "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+                       `Accept-Encoding` = "gzip, deflate",
+                       Connection = "keep-alive"
+                     ))
+      #se pasan a formato excel
+      bin <- httr::content(r, "raw")
+      writeBin(bin, path_excel)
+    }
     
     #se leen
-    d <- try(read_xls(path_excel, sheet = 1),silent=T)
+    d <- try(readxl::read_xls(path_excel, sheet = 1),silent=T)
     
-    if(class(d)[1]=="try-error"){return(NA)}else{
+    if(class(d)[1]=="try-error"){
+      #no deberia pasar
+      return(NA)
+    }else{
       d <- suppressWarnings(data.frame(d))
       
       ##se pasa a formato fecha las fechas
@@ -518,9 +570,10 @@ get.Acciones <- function(accion="BCOLOMBIA"){
       
     }
     
+    
   })
   unlink(path_excel)
-
+  
   
   listaAccion <- do.call(rbind,listaAccion)
   
@@ -531,20 +584,23 @@ get.Acciones <- function(accion="BCOLOMBIA"){
   listaAccion <- data.frame(listaAccion)
   ##se cambian los nombres
   names(listaAccion) <- c("Fecha","Volumen","Precio Cierre","Precio Mayor",
-                         "Precio Medio","Precio Menor")
+                          "Precio Medio","Precio Menor")
   listaAccion <- listaAccion[,c("Fecha",nom)]
   ##se quitan los casos donde hayan NA
-  listaAccion <- listaAccion[complete.cases(listaAccion),]
+  listaAccion <- listaAccion[stats::complete.cases(listaAccion),]
   ##se quitan los que tengan solo ceros en todo menos la fecha
   listaAccion <- listaAccion[!rowSums(listaAccion[,-1])==0,]
   ##se quitan los nombres de las filas
   rownames(listaAccion) <- NULL
   
   #se anuncia cuantos datos se consiguieron
-  print(paste0("Se obtuvo datos para el ", accion, " desde ", listaAccion$Fecha[1], " hasta ", listaAccion$Fecha[nrow(listaAccion)] ))
-  print("Fuente: Bolsa de Valores de Colombia")
+  # print(paste0("Se obtuvo datos para el ", accion, " desde ", listaAccion$Fecha[1], " hasta ", listaAccion$Fecha[nrow(listaAccion)] ))
+  # print("Fuente: Bolsa de Valores de Colombia")
+  message(paste0("Se obtuvo datos para el ", accion, " desde ", listaAccion$Fecha[1], " hasta ", listaAccion$Fecha[nrow(listaAccion)] ))
+  message("Fuente: Bolsa de Valores de Colombia")
   #se returna el data frame
   return(listaAccion)
   
 }
+
 
